@@ -11,7 +11,9 @@ class CovidTrends(object):
     def __init__(self, state='Montana', county=None):
         self.state = state
         self.county = county
-
+        self.state_df = self.get_nyt_state_data()
+        if county:
+            self.county_name = self.state_df[self.state_df['fips'] == self.county]['county'][0]
 
     def get_nyt_state_data(self):
 
@@ -29,8 +31,8 @@ class CovidTrends(object):
 
         return nyt_df[nyt_df['state'] == self.state]
 
-    def select_county_data(self, state_df):
-        county_df_all = state_df[state_df['fips'] == self.county]
+    def select_county_data(self):
+        county_df_all = self.state_df[self.state_df['fips'] == self.county]
         county_df = county_df_all['cases'].to_frame()
         county_df.columns = [self.county]
         return county_df
@@ -49,8 +51,7 @@ class CovidTrends(object):
 
     def get_covid_data(self):
 
-        state_df = self.get_nyt_state_data()
-        state_df_grp = state_df.groupby('date').sum()[['cases']]
+        state_df_grp = self.state_df.groupby('date').sum()[['cases']]
         state_df_grp.columns = [self.state]
 
         if self.state == 'Montana':
@@ -58,19 +59,23 @@ class CovidTrends(object):
             df = state_fill_df
 
             if self.county:
-                county_df = self.select_county_data(state_df)
+                county_df = self.select_county_data()
 
                 if self.county == 30063:
                     county_df = self.fill_missoula_county_data(county_df)
 
                 df = pd.merge(state_fill_df, county_df, how='outer', right_index=True, left_index=True)
+                df.columns = [self.state, self.county_name]
 
         else:
 
             df = state_df_grp
 
             if self.county:
-                county_df_all = self.select_county_data(state_df)
+                county_df_all = self.select_county_data()
                 df = pd.merge(state_df_grp, county_df, how='outer', right_index=True, left_index=True)
+                df.columns = [self.state, self.county_name]
         
         return df 
+
+# CovidTrends(county=30063).get_covid_data()
